@@ -106,25 +106,32 @@ def get_transforms_v2(is_train: bool, image_size: int, image_model_name: str):
     cfg = timm.get_pretrained_cfg(image_model_name)
     
     if is_train:
-        return A.Compose(
-        [
+        return A.Compose([
             A.SmallestMaxSize(max_size=image_size + 32, p=1.0),
             A.RandomCrop(height=image_size, width=image_size, p=1.0),
             A.HorizontalFlip(p=0.5),
-            A.Rotate(limit=15, p=0.5),
-            A.CoarseDropout(
-                num_holes_range=(1, 4),
-                hole_height_range=(int(0.05 * image_size), int(0.1 * image_size)),
-                hole_width_range=(int(0.05 * image_size), int(0.1 * image_size)),
-                fill=0,
-                p=0.3
+            A.Rotate(limit=20, p=0.5),
+            A.ShiftScaleRotate(
+                shift_limit=0.1, 
+                scale_limit=0.15, 
+                rotate_limit=20, 
+                p=0.5
             ),
-            A.ColorJitter(brightness=0.15, contrast=0.15, saturation=0.15, p=0.5),
-            A.GaussNoise(var_limit=(10.0, 30.0), p=0.2),
+            A.OneOf([
+                A.GaussNoise(var_limit=(10.0, 30.0), p=0.5),
+                A.ISONoise(p=0.5),
+            ], p=0.3),
+            A.ColorJitter(
+                brightness=0.2, 
+                contrast=0.2, 
+                saturation=0.2, 
+                hue=0.1, 
+                p=0.5
+         ),
+            A.RandomBrightnessContrast(p=0.3),
             A.Normalize(mean=cfg.mean, std=cfg.std),
             A.ToTensorV2()
-        ]
-        )
+    ])
     else:
         return A.Compose(
             [

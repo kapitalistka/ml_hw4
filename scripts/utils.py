@@ -83,6 +83,17 @@ def train_model(config, train_loader, val_loader, test_loader, tokenizer, model 
     
     optimizer = torch.optim.AdamW(model.parameters(), lr=config['learning_rate'])
     criterion = torch.nn.L1Loss()
+
+    ###
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+        optimizer, 
+        T_max=config['num_epochs'],
+        eta_min=1e-6
+    )
+
+    ###
+
+    
     
     history = {'train_loss': [], 'train_mae': [], 'val_loss': [], 'val_mae': []}
     best_mae = float('inf')
@@ -96,6 +107,8 @@ def train_model(config, train_loader, val_loader, test_loader, tokenizer, model 
         train_metrics = train_epoch(model, train_loader, criterion, optimizer, device)
         
         val_metrics = evaluate(model, val_loader, criterion, device)
+        scheduler.step()
+
         
         # Сохранение истории
         history['train_loss'].append(train_metrics['loss'])

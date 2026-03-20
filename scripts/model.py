@@ -60,7 +60,7 @@ class CaloriesMultimodalModel(nn.Module):
                 param.requires_grad = True
         
         blocks = self.image_model.blocks
-        for i in range(len(blocks) - 1, len(blocks)):
+        for i in range(len(blocks) - 3, len(blocks)):
             for param in blocks[i].parameters():
                 param.requires_grad = True
         
@@ -114,7 +114,16 @@ class CaloriesMultimodalModel(nn.Module):
             input_ids=input_ids,
             attention_mask=attention_mask
         )
-        text_features = text_output.last_hidden_state[:, 0, :]
+
+        mask_expanded = attention_mask.unsqueeze(-1).expand(
+            text_output.last_hidden_state.size()
+            ).float()
+        text_features = torch.sum(
+            text_output.last_hidden_state * mask_expanded, 1) / torch.clamp(mask_expanded.sum(1), min=1e-9)
+
+
+
+        #text_features = text_output.last_hidden_state[:, 0, :]
         
         image_features = self.image_model(image)
         
