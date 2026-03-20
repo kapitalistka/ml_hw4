@@ -3,10 +3,13 @@ import pandas as pd
 import numpy as np
 from PIL import Image
 from typing import Dict, Optional
+import timm
+
 
 import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
+import albumentations as A
 from transformers import AutoTokenizer
 from torch.utils.data import DataLoader
 from sklearn.model_selection import train_test_split
@@ -67,7 +70,9 @@ class CaloriesDatasetV2(Dataset):
             image = Image.new('RGB', (224, 224), (0, 0, 0))
         
         if self.transform:
-            image = self.transform(image)
+            #image = self.transform(image)
+            image = self.transform(image=np.array(image))["image"]
+
         
         ingredients_str = row.get('ingredients', '')
         ingredient_text = self._get_ingredient_names(ingredients_str)
@@ -96,27 +101,42 @@ class CaloriesDatasetV2(Dataset):
     
 
 
-def get_transforms_v2(is_train: bool = True, image_size: int = 224):
-    normalize = transforms.Normalize(
-        mean=[0.485, 0.456, 0.406],
-        std=[0.229, 0.224, 0.225]
-    )
+def get_transforms_v2(is_train: bool, image_size: int, image_model_name: str):
+
+    cfg = timm.get_pretrained_cfg(image_model_name)
     
     if is_train:
-        return transforms.Compose([
-            transforms.Resize((image_size + 32, image_size + 32)),
-            transforms.RandomCrop(image_size),
-            transforms.RandomHorizontalFlip(p=0.5),
-            transforms.ToTensor(),
-            normalize,
-        ])
+        return A.Compose(
+        [
+            A.SmallestMaxSize(max_size=image_size + 32, p=1.0),
+            A.RandomCrop(height=image_size, width=image_size, p=1.0),
+            A.HorizontalFlip(p=0.5),
+            A.Rotate(limit=15, p=0.5),
+            A.CoarseDropout(
+                num_holes_range=(1, 4),
+                hole_height_range=(int(0.05 * image_size), int(0.1 * image_size)),
+                hole_width_range=(int(0.05 * image_size), int(0.1 * image_size)),
+                fill=0,
+                p=0.3
+            ),
+            A.ColorJitter(brightness=0.15, contrast=0.15, saturation=0.15, p=0.5),
+            A.GaussNoise(var_limit=(10.0, 30.0), p=0.2),
+            A.Normalize(mean=cfg.mean, std=cfg.std),
+            A.ToTensorV2()
+        ]
+        )
     else:
-        return transforms.Compose([
-            transforms.Resize((image_size, image_size)),
-            transforms.ToTensor(),
-            normalize,
-        ])
+        return A.Compose(
+            [
 
+                A.SmallestMaxSize(max_size=image_size),
+                A.CenterCrop(height=image_size, width=image_size),
+                A.Normalize(mean=cfg.mean, std=cfg.std),
+                A.ToTensorV2()
+
+            ]
+        )
+    
 
 def create_dataloaders_v2(config, tokenizer):
     ingredients_df = pd.read_csv(config['ingredients_path'])
@@ -142,7 +162,7 @@ def create_dataloaders_v2(config, tokenizer):
         images_dir=config['images_dir'],
         tokenizer=tokenizer,
         max_length=128,
-        transform=get_transforms_v2(is_train=True, image_size=config['image_size']),
+        transform=get_transforms_v2(is_train=True, image_size=config['image_size'], image_model_name = config['image_model_name']),
         is_train=True
     )
     
@@ -152,7 +172,7 @@ def create_dataloaders_v2(config, tokenizer):
         images_dir=config['images_dir'],
         tokenizer=tokenizer,
         max_length=128,
-        transform=get_transforms_v2(is_train=False, image_size=config['image_size']),
+        transform=get_transforms_v2(is_train=False, image_size=config['image_size'], image_model_name = config['image_model_name']),
         is_train=False
     )
     
@@ -162,7 +182,7 @@ def create_dataloaders_v2(config, tokenizer):
         images_dir=config['images_dir'],
         tokenizer=tokenizer,
         max_length=128,
-        transform=get_transforms_v2(is_train=False, image_size=config['image_size']),
+        transform=get_transforms_v2(is_train=False, image_size=config['image_size'], image_model_name = config['image_model_name']),
         is_train=False
     )
     

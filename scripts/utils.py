@@ -17,7 +17,7 @@ def train_epoch(model, loader, criterion, optimizer, device):
     total_mae = 0
     num_samples = 0
     
-    for batch in tqdm(loader, desc='Training'):
+    for batch in tqdm(loader, desc='Обучение'):
         input_ids = batch['input_ids'].to(device)
         attention_mask = batch['attention_mask'].to(device)
         images = batch['image'].to(device)
@@ -48,7 +48,7 @@ def evaluate(model, loader, criterion, device):
     total_mae = 0
     num_samples = 0
     
-    for batch in tqdm(loader, desc='Evaluating'):
+    for batch in tqdm(loader, desc='Оценка'):
         input_ids = batch['input_ids'].to(device)
         attention_mask = batch['attention_mask'].to(device)
         images = batch['image'].to(device)
@@ -79,7 +79,7 @@ def train_model(config, train_loader, val_loader, test_loader, tokenizer, model 
     total_params = sum(p.numel() for p in model.parameters())
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f'Всего параметров: {total_params:,}')
-    print(f'Обучаемых параметров: {trainable_params:,}')
+    print(f'Обучаемых: {trainable_params:,}')
     
     optimizer = torch.optim.AdamW(model.parameters(), lr=config['learning_rate'])
     criterion = torch.nn.L1Loss()
@@ -88,9 +88,7 @@ def train_model(config, train_loader, val_loader, test_loader, tokenizer, model 
     best_mae = float('inf')
     patience_counter = 0
     
-    print('\n' + '=' * 50)
-    print('Начало обучения')
-    print('=' * 50)
+    print('Начало обучения\n')
     
     for epoch in range(1, config['num_epochs'] + 1):
         print(f'\nЭпоха {epoch}/{config["num_epochs"]}')
